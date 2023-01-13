@@ -25,10 +25,17 @@ class Pipeline_lstm:
             y = y_raw.values
 
         X_organized, Y_organized = [], []
-        for i in range(0, res.shape[0]-lookback, 1):
-            X_organized.append(res[i:i+lookback])
+        for i in range(lookback):
+            X_organized.append([res[i]]*lookback)
             if y_raw is not None:
-                Y_organized.append(y[i+lookback])
+                Y_organized.append(y[i])
+
+        for i in range(lookback, res.shape[0], 1):
+            X_organized.append(res[i-lookback:i])
+            if y_raw is not None:
+                Y_organized.append(y[i])
+
+
 
         X_organized = torch.tensor(np.array(X_organized), dtype=torch.float32, device='cpu')
         if y_raw is not None:
