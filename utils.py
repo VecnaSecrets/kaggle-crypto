@@ -24,7 +24,6 @@ def organize(*arrs: np.array, lookback=5):
 
     for ind, df in enumerate(res):
         for i in range(lookback-1, df.shape[0]):
-            print(df[i])
             df[i] = arrs[ind][i-lookback+1:i+1]
 
     return (np.array(n) for n in res)
