@@ -4,7 +4,7 @@ from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 import torch
 from torch.utils.data import TensorDataset, DataLoader
-import inspect
+
 
 def organize(*arrs: np.array, lookback=5):
     for ind, n in enumerate(arrs):
@@ -37,16 +37,16 @@ class Pipeline_lstm:
         self.imputer = SimpleImputer(strategy=impute_strategy)
         self.scaler = MinMaxScaler()
 
-    def fit(self, X_raw: pd.DataFrame, y_raw: pd.Series):
+    def fit(self, X_raw: pd.DataFrame, y_raw: pd.Series = None):
         self.imputer.fit(X_raw)
         self.scaler.fit(X_raw)
 
     def transform(self, X_raw: pd.DataFrame, y_raw=None, lookback=10) -> TensorDataset:
-        res = pd.DataFrame(self.imputer.transform(X_raw), columns=X_raw.columns)
-        res = pd.DataFrame(self.scaler.transform(res), columns=res.columns)
-        res = res.values
+        res = self.imputer.transform(X_raw)
+        res = self.scaler.transform(res)
+        # res = res.values
         if y_raw is not None:
-            y = y_raw.values.reshape(-1,1)
+            y = np.array(y_raw).reshape(-1,1)
 
         X_organized = organize(res, lookback=lookback).__next__()
 
