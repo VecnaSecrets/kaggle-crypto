@@ -22,14 +22,10 @@ def organize(*arrs: np.array, lookback=5):
         for i in range(lookback-1):
             df[i] = (arrs[ind][i].reshape((1, -1)).T @ np.ones((1,lookback))).T
 
-    print(res)
-
     for ind, df in enumerate(res):
         for i in range(lookback-1, df.shape[0]):
             print(df[i])
             df[i] = arrs[ind][i-lookback+1:i+1]
-
-    print(res)
 
     return (np.array(n) for n in res)
 
@@ -50,7 +46,6 @@ class Pipeline_lstm:
         res = pd.DataFrame(self.imputer.transform(X_raw), columns=X_raw.columns)
         res = pd.DataFrame(self.scaler.transform(res), columns=res.columns)
         res = res.values
-        print(res)
         if y_raw is not None:
             y = y_raw.values.reshape(-1,1)
         if y_raw is not None:
