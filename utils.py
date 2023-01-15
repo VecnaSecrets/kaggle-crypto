@@ -47,10 +47,8 @@ class Pipeline_lstm:
         res = res.values
         if y_raw is not None:
             y = y_raw.values.reshape(-1,1)
-        if y_raw is not None:
-            X_organized, Y_organized = organize(res, y, lookback=lookback)
-        else:
-            X_organized = organize(res, lookback=lookback)
+
+        X_organized = organize(res, lookback=lookback).__next__()
 
 
         # X_organized, Y_organized = [], []
@@ -66,10 +64,10 @@ class Pipeline_lstm:
 
         X_organized = torch.tensor(X_organized, dtype=torch.float32, device='cpu')
         if y_raw is not None:
-            Y_organized = torch.tensor(Y_organized, dtype=torch.float32, device='cpu')
+            y = torch.tensor(y, dtype=torch.float32, device='cpu')
 
         if y_raw is not None:
-            return TensorDataset(X_organized, Y_organized)
+            return TensorDataset(X_organized, y)
         else:
             return TensorDataset(X_organized)
 
@@ -81,5 +79,5 @@ class Pipeline_lstm:
 if __name__ == '__main__':
     a = np.arange(0,15).reshape(5,3)
     b = np.arange(10,15).reshape(-1,1)
-    print(organize(a, b, lookback=2))
+    print(organize(a, lookback=2).__next__())
 # print(inspect.signature(Pipeline_lstm.fit).parameters.keys())
