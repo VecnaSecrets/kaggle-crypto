@@ -26,6 +26,7 @@ def CalcR2_MSE_score(model, val_ds, device='cpu'):
         r2_score(y_true, preds_all), \
         mean_squared_error(y_true, preds_all)
 
+
 def TrainModel(model,
                loss_fn,
                optimizer,
@@ -39,7 +40,9 @@ def TrainModel(model,
     for i in pbar:
         losses = []
         for X, Y in train_loader:
-            Y_preds = model(X.to(device=device)).to(device='cpu')
+            X = X.to(device=device)
+            Y_preds = model(X)
+            Y_preds = Y_preds.to(device='cpu')
 
             loss = loss_fn(Y_preds.ravel(), Y).to(device='cpu')
             losses.append(loss.item())
@@ -47,6 +50,7 @@ def TrainModel(model,
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+
         if i % display_on_epoch == 0:
             avg_train_loss = torch.tensor(losses).mean()
             avg_val_loss = CalcValLoss(model, loss_fn, val_loader, device=device)
@@ -64,8 +68,8 @@ class LSTMRegressor(nn.Module):
         self.n_layers = n_layers
         self.device = device
         super(LSTMRegressor, self).__init__()
-        self.lstm = nn.LSTM(input_size=self.input_size, hidden_size=self.hidden_dim, num_layers=self.n_layers, batch_first=True)
-        self.linear = nn.Linear(self.hidden_dim, 1)
+        self.lstm = nn.LSTM(input_size=self.input_size, hidden_size=self.hidden_dim, num_layers=self.n_layers, batch_first=True).to(device=self.device)
+        self.linear = nn.Linear(self.hidden_dim, 1).to(device=self.device)
 
     def forward(self, X_batch):
         hidden, carry = torch.randn(self.n_layers, len(X_batch), self.hidden_dim, device=self.device), torch.randn(self.n_layers, len(X_batch), self.hidden_dim, device=self.device)
