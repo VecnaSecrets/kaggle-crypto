@@ -121,5 +121,5 @@ def pearson_c(y_true: t.tensor, y_preds: t.tensor):
         y_true.T,
         y_preds.T
     ], dim=0)
-    corr = t.scalar_tensor(1) - t.pow(t.corrcoef(x)[0][1], 2)
+    corr = t.scalar_tensor(1) - t.corrcoef(x)[0][1]
     return corr

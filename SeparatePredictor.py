@@ -1,4 +1,4 @@
-from train_tools import CalcValLoss, CalcR2_MSE_score, TrainModel
+from train_tools import CalcValLoss, CalcR2_MSE_score, TrainModel, TrainModel_NoLoader
 from utils import Pipeline_lstm
 import os
 import pandas as pd
@@ -7,6 +7,7 @@ from torch import nn
 from torch.utils.data import TensorDataset, DataLoader
 from torch.optim import Adam
 import numpy as np
+from torch.utils.tensorboard import SummaryWriter
 
 import datetime
 
