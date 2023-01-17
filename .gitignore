@@ -1,3 +1,7 @@
 runs*
 .idea*
 models*
+final_profile_report.html
+submission*
+kuma_utils*
+__pycache__*
