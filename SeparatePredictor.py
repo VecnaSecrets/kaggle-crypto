@@ -54,20 +54,26 @@ class SeparatePredictor:
 
 
 
-    def set_up_pipeline(self):
+    def set_up_pipeline(self,
+                        pipeline_f,
+                        pipe_params={},
+                        train_f=None,
+                        validate_f=None):
         """
         here we will define our preprocess pipeline as well as training functions
         :return:
         """
-        self.preprocess_p = dict(zip(self.class_labels, [Pipeline_lstm()]*self.num_classes))
-        self.train_f = TrainModel
-        self.validate_f = CalcR2_MSE_score
+        self.preprocess_p = dict(zip(self.class_labels, [pipeline_f(**pipe_params) for _ in range(self.num_classes)]))
+        self.train_f = train_f
+        self.validate_f = validate_f
         pass
 
     def prepare(self):
         self.devided_data, self.y_devided, self.class_labels = self.separate_data(self.raw_data, self.y)
         self.models = dict(zip(self.class_labels, self.models))
-        self.set_up_pipeline()
+        self.set_up_pipeline(pipeline_f=Pipeline_lstm,
+                             train_f=TrainModel,
+                             validate_f=CalcValLoss())
         self.train_test_split()
         self.fit_preprocess()
 
@@ -94,22 +100,22 @@ class SeparatePredictor:
         class_labels = raw_data[self.feat_devide].unique().tolist()
         for n in class_labels:
             res[n] = raw_data.loc[
-                           raw_data[self.feat_devide] == n
-                           ][self.relevant_features] \
-                       .values
+                raw_data[self.feat_devide] == n
+                ][self.relevant_features] \
+                .values
             if y_raw is not None:
                 y[n] = y_raw[raw_data[self.feat_devide] == n]
         if y_raw is not None:
             return res, y, class_labels
         return res, class_labels
 
-    def prepare_data(self, listed_data, listed_y=None):
+    def prepare_data(self, listed_data, listed_y=None, transform_params={}):
         res = {}
         for n in self.class_labels:
             if listed_y is not None:
-                res[n] = self.preprocess_p[n].transform(listed_data[n], listed_y[n])
+                res[n] = self.preprocess_p[n].transform(listed_data[n], listed_y[n], **transform_params)
             else:
-                res[n] = self.preprocess_p[n].transform(listed_data[n])
+                res[n] = self.preprocess_p[n].transform(listed_data[n], **transform_params)
         return res
 
     def train_test_split(self):
@@ -160,7 +166,6 @@ class SeparatePredictor:
                     device='cpu',
                     writer=None,
                     other_train_params={}):
-        print(model.device)
         if loss_fn is None:
             loss_fn = nn.MSELoss()
         if optimizer_cl is None:
@@ -170,19 +175,50 @@ class SeparatePredictor:
 
         _ = self.train_f(model, loss_fn, optimizer, train_loader, test_loader, epochs, device=device,writer=writer, **other_train_params)
 
-    def predict(self, X:pd.DataFrame, device='cpu'):
+    def predict(self, X:pd.DataFrame, device='cpu', transform_params={}):
         res = pd.DataFrame(index=X.index, data=np.zeros(X.shape[0]))
 
         X_separated, classes = self.separate_data(X)
         X_ds = self.prepare_data(X_separated)
         out = {}
-        for cls in classes:
-            out[cls] = self.models[cls].to(device=device)\
-                (X_ds[cls].tensors[0].to(device=device))\
-                .to(device='cpu').detach().numpy()
-            res.loc[X[self.feat_devide] == cls] = out[cls]
+        with torch.no_grad():
+            for cls in classes:
+                out[cls] = self.models[cls].to(device=device) \
+                    (X_ds[cls].tensors[0].to(device=device)) \
+                    .to(device='cpu').detach().numpy()
+                res.loc[X[self.feat_devide] == cls] = out[cls]
 
         return res
+
+class Conv1dPredictor(SeparatePredictor):
+    def prepare(self):
+        self.devided_data, self.y_devided, self.class_labels = self.separate_data(self.raw_data, self.y)
+        self.models = dict(zip(self.class_labels, self.models))
+        self.set_up_pipeline(
+            pipeline_f=Pipeline_lstm,
+            pipe_params={'lookback':self.lookback},
+            train_f=TrainModel_NoLoader
+        )
+        self.train_test_split()
+        self.fit_preprocess()
+
+        self.train_ds = self.prepare_data(self.X_train, self.y_train)
+        self.test_ds = self.prepare_data(self.X_test, self.y_test)
+
+    def train(self, device='cpu', epoch_shedule=None, epochs=100, **kwargs):
+        for cls in self.class_labels:
+            print(f"TRAINING f{cls}")
+            writer = SummaryWriter('./runs/1dConv_multi/{}'.format(cls))
+            if epoch_shedule is not None:
+                epochs = epoch_shedule[cls]
+            self.train_class(self.models[cls].to(device=device),
+                             self.train_ds[cls],
+                             self.test_ds[cls],
+                             device=device,
+                             writer=writer,
+                             epochs=epochs,
+                             **kwargs)
+
 
 from train_tools import LSTMRegressor
 if __name__ == "__main__":
