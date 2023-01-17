@@ -1,5 +1,6 @@
 from tqdm import tqdm
 import torch
+import torch as t
 from sklearn.metrics import r2_score, mean_squared_error
 
 def CalcValLoss(model, loss_fn, val_loader, device='cpu', return_preds=False):
@@ -75,3 +76,50 @@ class LSTMRegressor(nn.Module):
         hidden, carry = torch.randn(self.n_layers, len(X_batch), self.hidden_dim, device=self.device), torch.randn(self.n_layers, len(X_batch), self.hidden_dim, device=self.device)
         output, (hidden, carry) = self.lstm(X_batch, (hidden, carry))
         return self.linear(output[:,-1])
+
+
+def TrainModel_NoLoader(model,
+                        loss_fn,
+                        optimizer,
+                        train_ds,
+                        val_ds,
+                        epochs=10,
+                        display_on_epoch = 100,
+                        device='cpu',
+                        writer=None):
+    pbar = tqdm(range(1, epochs+1))
+    X_val = val_ds.tensors[0]
+    for i in pbar:
+        losses = []
+        X = train_ds.tensors[0].to(device=device)
+        Y_preds = model(X)
+        Y_preds = Y_preds.to(device='cpu')
+
+        loss = loss_fn(Y_preds, train_ds.tensors[1]).to(device='cpu')
+        losses.append(loss.item())
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        if i % display_on_epoch == 0:
+            with t.no_grad():
+                avg_train_loss = t.tensor(losses).mean()
+
+                avg_val_loss = loss_fn(
+                    model(X_val.to(device=device)).to(device='cpu'),
+                    val_ds.tensors[1]
+                )
+            if writer is not None:
+                writer.add_scalar("train/loss", avg_train_loss, i)
+                writer.add_scalar("val/loss", avg_val_loss, i)
+            pbar.set_description("Train Loss: {:.2f}; Val Loss: {:.2f}".format(avg_train_loss, avg_val_loss))
+    return losses
+
+def pearson_c(y_true: t.tensor, y_preds: t.tensor):
+    x = t.concat([
+        y_true.T,
+        y_preds.T
+    ], dim=0)
+    corr = t.scalar_tensor(1) - t.pow(t.corrcoef(x)[0][1], 2)
+    return corr

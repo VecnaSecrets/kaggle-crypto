@@ -33,7 +33,8 @@ class Pipeline_lstm:
     """
     Пайплайн для некого пандаса одной монеты уже с выброшенными лишними фичами.
     """
-    def __init__(self, impute_strategy='mean'):
+    def __init__(self, impute_strategy='mean', lookback=10):
+        self.lookback=lookback
         self.imputer = SimpleImputer(strategy=impute_strategy)
         self.scaler = MinMaxScaler()
 
@@ -41,26 +42,14 @@ class Pipeline_lstm:
         self.imputer.fit(X_raw)
         self.scaler.fit(X_raw)
 
-    def transform(self, X_raw: pd.DataFrame, y_raw=None, lookback=10) -> TensorDataset:
+    def transform(self, X_raw: pd.DataFrame, y_raw=None) -> TensorDataset:
         res = self.imputer.transform(X_raw)
         res = self.scaler.transform(res)
         # res = res.values
         if y_raw is not None:
             y = np.array(y_raw).reshape(-1,1)
 
-        X_organized = organize(res, lookback=lookback).__next__()
-
-
-        # X_organized, Y_organized = [], []
-        # for i in range(lookback):
-        #     X_organized.append([res[i]]*lookback)
-        #     if y_raw is not None:
-        #         Y_organized.append(y[i])
-        #
-        # for i in range(lookback, res.shape[0], 1):
-        #     X_organized.append(res[i-lookback:i])
-        #     if y_raw is not None:
-        #         Y_organized.append(y[i])
+        X_organized = organize(res, lookback=self.lookback).__next__()
 
         X_organized = torch.tensor(X_organized, dtype=torch.float32, device='cpu')
         if y_raw is not None:
